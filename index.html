@@ -21,8 +21,8 @@ body, html {
     align-items: center;
     min-height: 100vh;
     text-align: center;
-    overflow: hidden;
 }
+
 .channels {
     display: flex;
     width: 100%;
@@ -32,8 +32,8 @@ body, html {
     transition: transform 0.3s ease;
     padding: 20px; 
     box-sizing: border-box;
-    overflow: visible;
 }
+
 .gains {
     font-size: 36px;
     font-weight: bold;
@@ -52,7 +52,6 @@ body, html {
     border-radius: 10px;
     margin-bottom: 20px;
     position: relative;
-    overflow: visible; 
     cursor: pointer;
     transition: transform 0.3s ease, width 0.3s ease, height 0.3s ease;
     transform-origin: center center;
@@ -74,8 +73,7 @@ body, html {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    transform: none; 
-    pointer-events: none;
+    overflow: auto; /* Allow scrolling */
 }
 
 .fullscreen .odometer,
@@ -152,6 +150,9 @@ img {
 @media (max-width: 768px) {
     .channels {
         flex-direction: column;
+    }
+    .fullscreen {
+        display: none !important; 
     }
     .channel {
         width: 80%;
@@ -400,15 +401,18 @@ img {
         }, 2000);
 
         document.querySelectorAll('.channel').forEach(channelDiv => {
-            channelDiv.addEventListener('click', () => {
-                enterFullScreen(channelDiv);
-            });
-
-            const link = channelDiv.querySelector('a');
-            if (link) {
-                link.addEventListener('click', (event) => {
-                    event.stopPropagation();
+            // Only add fullscreen event listener if not on mobile
+            if (window.innerWidth > 768) {
+                channelDiv.addEventListener('click', () => {
+                    enterFullScreen(channelDiv);
                 });
+
+                const link = channelDiv.querySelector('a');
+                if (link) {
+                    link.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                    });
+                }
             }
         });
     }
