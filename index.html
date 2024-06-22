@@ -122,7 +122,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function updateMrBeastGains(stats) {
         if (stats && stats.totalSubscribersGained) {
-            odometerMrBeastGains.update(stats.totalSubscribersGained);
+            odometerMrBeastGains.update(stats.totalSubscribersGained.toLocaleString('en-US'));
         }
     }
 
@@ -166,15 +166,15 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById(`${prefix}-name`).textContent = data.channelDetails.name;
             document.getElementById(`${prefix}-subs`).textContent = 
                 prefix === 'channel1' 
-                    ? data.channelDetails.linearEstSubscriberCount.toLocaleString()
-                    : (data.channelDetails.linearEstSubscriberCount - baseAdjustment).toLocaleString();
+                    ? data.channelDetails.linearEstSubscriberCount.toLocaleString('en-US')
+                    : (data.channelDetails.linearEstSubscriberCount - baseAdjustment).toLocaleString('en-US');
         };
 
         updateChannel(data1, 'channel1');
         updateChannel(data2, 'channel2');
 
         const subDiff = Math.abs(data1.channelDetails.linearEstSubscriberCount - (data2.channelDetails.linearEstSubscriberCount - baseAdjustment));
-        odometerSubDiff.update(subDiff);
+        odometerSubDiff.update(subDiff.toLocaleString('en-US'));
     }
 
     function updateCountdown() {
