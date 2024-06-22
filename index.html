@@ -21,6 +21,7 @@ body, html {
     align-items: center;
     min-height: 100vh;
     text-align: center;
+    overflow: hidden;
 }
 .channels {
     display: flex;
@@ -28,6 +29,10 @@ body, html {
     justify-content: space-around;
     gap: 20px;
     flex-wrap: wrap;
+    transition: transform 0.3s ease;
+    padding: 20px; 
+    box-sizing: border-box;
+    overflow: visible;
 }
 .gains {
     font-size: 36px;
@@ -47,7 +52,64 @@ body, html {
     border-radius: 10px;
     margin-bottom: 20px;
     position: relative;
-    overflow: hidden;
+    overflow: visible; 
+    cursor: pointer;
+    transition: transform 0.3s ease, width 0.3s ease, height 0.3s ease;
+    transform-origin: center center;
+}
+
+.channel:hover:not(.fullscreen) {
+    transform: scale(1.05);
+}
+
+.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #1e1e1e;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transform: none; 
+    pointer-events: none;
+}
+
+.fullscreen .odometer,
+.fullscreen h2 {
+    font-size: 48px;
+}
+
+.fullscreen img {
+    width: 150px;
+    height: 150px;
+}
+
+.fullscreen canvas {
+    opacity: 0.5;
+}
+
+.fullscreen .back-button {
+    pointer-events: auto; 
+}
+
+.back-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background-color: #333;
+    color: #e0e0e0;
+    border: none;
+    padding: 10px 20px;
+    margin-left: 20px;
+    margin-top: 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 16px;
+    z-index: 1001;
 }
 
 a {
@@ -69,7 +131,7 @@ img {
     height: 100px;
     border-radius: 50%;
     margin-bottom: 15px;
-    border: 3px solid #333;
+    border: 5px solid #333;
     position: relative;
     z-index: 1;
 }
@@ -100,7 +162,7 @@ img {
 </head>
 <body>
     <div class="channels">
-        <div class="channel">
+        <div class="channel" data-channel="channel1">
             <canvas id="channel1-chart"></canvas>
             <img id="channel1-image" src="" alt="Channel 1 Thumbnail" crossorigin="anonymous">
             <a id="channel1-link" href="#" target="_blank">
@@ -108,7 +170,7 @@ img {
             </a>
             <p class="odometer" id="channel1-subs"></p>
         </div>
-        <div class="channel">
+        <div class="channel" data-channel="channel2">
             <canvas id="channel2-chart"></canvas>
             <img id="channel2-image" src="" alt="Channel 2 Thumbnail" crossorigin="anonymous">
             <a id="channel2-link" href="#" target="_blank">
@@ -189,16 +251,18 @@ img {
         }
 
         function setColor(elementId, img) {
-            try {
-                const palette = colorThief.getPalette(img, 8);
-                const mostVibrant = getMostVibrantColor(palette);
-                document.getElementById(elementId).style.color = `rgb(${mostVibrant.join(',')})`;
-                return `rgb(${mostVibrant.join(',')})`;
-            } catch (error) {
-                console.error('Error setting color:', error);
-                return null;
-            }
+        try {
+            const palette = colorThief.getPalette(img, 8);
+            const mostVibrant = getMostVibrantColor(palette);
+            const color = `rgb(${mostVibrant.join(',')})`;
+            document.getElementById(elementId).style.color = color;
+            img.style.borderColor = color;
+            return color;
+        } catch (error) {
+            console.error('Error setting color:', error);
+            return null;
         }
+    }
 
         function createChart(canvasId, label, color) {
         const ctx = document.getElementById(canvasId).getContext('2d');
@@ -276,18 +340,18 @@ img {
             const img = document.getElementById(`${prefix}-image`);
             img.src = data.channelDetails.profilePicture;
             img.onload = () => {
-                if (img.complete) {
-                    const color = setColor(`${prefix}-name`, img);
-                    setColor(`${prefix}-subs`, img);
-
-                    if (!charts[prefix]) {
-                        charts[prefix] = createChart(`${prefix}-chart`, data.channelDetails.name, color);
-                    }
+            if (img.complete) {
+                const color = setColor(`${prefix}-name`, img);
+                setColor(`${prefix}-subs`, img);
+                
+                if (!charts[prefix]) {
+                    charts[prefix] = createChart(`${prefix}-chart`, data.channelDetails.name, color);
                 }
-            };
+            }
+        };
 
             document.getElementById(`${prefix}-name`).textContent = data.channelDetails.name;
-            document.getElementById(`${prefix}-link`).href = `https://www.youtube.com/${channelId}`;
+            document.getElementById(`${prefix}-link`).href = `https://www.youtube.com/channel/${channelId}`;
             const subCount = prefix === 'channel1'
                 ? data.channelDetails.linearEstSubscriberCount
                 : (data.channelDetails.linearEstSubscriberCount - baseAdjustment);
@@ -328,13 +392,26 @@ img {
         }
 
         function initialize() {
-            fetchDataAndUpdateUI();
-            setInterval(updateCountdown, 1000);
-            setInterval(fetchDataAndUpdateUI, 2000);
-            setInterval(() => {
-                fetchMrBeastStats().then(updateMrBeastGains);
-            }, 2000);
-        }
+        fetchDataAndUpdateUI();
+        setInterval(updateCountdown, 1000);
+        setInterval(fetchDataAndUpdateUI, 2000);
+        setInterval(() => {
+            fetchMrBeastStats().then(updateMrBeastGains);
+        }, 2000);
+
+        document.querySelectorAll('.channel').forEach(channelDiv => {
+            channelDiv.addEventListener('click', () => {
+                enterFullScreen(channelDiv);
+            });
+
+            const link = channelDiv.querySelector('a');
+            if (link) {
+                link.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
+            }
+        });
+    }
 
         function fetchDataAndUpdateUI() {
             Promise.all([fetchData(channel1Id), fetchData(channel2Id)])
@@ -354,6 +431,40 @@ img {
             format: '(,ddd)',
             theme: 'minimal'
         });
+
+        const originalOrder = Array.from(document.querySelectorAll('.channels .channel'));
+        let originalParent;
+
+        function enterFullScreen(channelDiv) {
+            originalParent = channelDiv.parentNode;
+            channelDiv.classList.add('fullscreen');
+            const backButton = document.createElement('button');
+            backButton.textContent = 'Back';
+            backButton.classList.add('back-button');
+            backButton.addEventListener('click', (event) => {
+                event.stopPropagation(); 
+                exitFullScreen(channelDiv);
+            });
+            channelDiv.appendChild(backButton);
+            document.body.appendChild(channelDiv);
+
+            const canvas = channelDiv.querySelector('canvas');
+            const chartId = canvas.id.replace('-chart', '');
+            const chartInstance = charts[chartId];
+            if (chartInstance) {
+                new Chart(canvas, chartInstance.config);
+            }
+        }
+
+        function exitFullScreen(channelDiv) {
+            channelDiv.classList.remove('fullscreen');
+            const backButton = channelDiv.querySelector('.back-button');
+            if (backButton) {
+                backButton.remove();
+            }
+            originalParent.appendChild(channelDiv); 
+            originalOrder.forEach(channel => originalParent.appendChild(channel)); 
+        }
 
         initialize();
     });
