@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Subscriber Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/odometer.js/0.4.8/themes/odometer-theme-minimal.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.min.js"></script>
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    text-align: center;
+}
+
+.channels {
+    display: flex;
+    width: 100%;
+    justify-content: space-around;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.gains {
+    font-size: 36px;
+    font-weight: bold;
+}
+
+.gains-text {
+    font-size: 36px;
+    font-weight: bold;
+}
+
+.channel {
+    flex: 1;
+    min-width: 250px;
+    padding: 20px;
+    background-color: #1e1e1e;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin-bottom: 15px;
+    border: 3px solid #333;
+}
+
+.odometer {
+    font-size: 36px;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .channels {
+        flex-direction: column;
+    }
+    .channel {
+        width: 80%;
+        margin: 0 auto 20px;
+    }
+}
+</style>
+</head>
+<body>
+    <div class="channels">
+        <div class="channel">
+            <img id="channel1-image" src="" alt="Channel 1 Thumbnail" crossorigin="anonymous">
+            <h2 id="channel1-name"></h2>
+            <p class="odometer" id="channel1-subs"></p>
+        </div>
+        <div class="channel">
+            <img id="channel2-image" src="" alt="Channel 2 Thumbnail" crossorigin="anonymous">
+            <h2 id="channel2-name"></h2>
+            <p class="odometer" id="channel2-subs"></p>
+        </div>
+    </div>
+    <h2>Subscriber Difference</h2>
+    <p class="odometer" id="sub-diff"></p>
+    <h2>MrBeast Gains in the last 24 hours</h2><br></span><span class="odometer" id="mrbeast-gains"></span></p><div class="countdown">
+        <h2 id="countdown-timer"></h2>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/odometer.js/0.4.8/odometer.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const colorThief = new ColorThief();
+    const channel1Id = "UCozwejESfvl88CBBL0KgEhw";
+    const channel2Id = "UCX6OQ3DkcsbYNE6H8uQQuVA";
+    const baseAdjustment = 260577905;
+    const endDate = new Date("2024-06-23T15:01:14.464999Z");
+
+    function fetchData(channelId) {
+        return fetch(`https://api.communitrics.com/${channelId}`)
+            .then(response => response.json())
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                return null;
+            });
+    }
+
+    function fetchMrBeastStats() {
+        return fetch(`https://api.communitrics.com/mrbeaststats`)
+            .then(response => response.json())
+            .catch(error => {
+                console.error('Error fetching MrBeast stats:', error);
+                return null;
+            });
+    }
+
+    function updateMrBeastGains(stats) {
+        if (stats && stats.totalSubscribersGained) {
+            odometerMrBeastGains.update(stats.totalSubscribersGained);
+        }
+    }
+
+    function getVibrancy(rgb) {
+        const max = Math.max(...rgb);
+        const min = Math.min(...rgb);
+        const saturation = max - min;
+        const brightness = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+        return saturation * brightness;
+    }
+
+    function getMostVibrantColor(palette) {
+        return palette.reduce((mostVibrant, color) => 
+            getVibrancy(color) > getVibrancy(mostVibrant) ? color : mostVibrant
+        );
+    }
+
+    function setColor(elementId, img) {
+        try {
+            const palette = colorThief.getPalette(img, 8);
+            const mostVibrant = getMostVibrantColor(palette);
+            document.getElementById(elementId).style.color = `rgb(${mostVibrant.join(',')})`;
+        } catch (error) {
+            console.error('Error setting color:', error);
+        }
+    }
+
+    function updateUI(data1, data2) {
+        if (!data1 || !data2) return;
+
+        const updateChannel = (data, prefix) => {
+            const img = document.getElementById(`${prefix}-image`);
+            img.src = data.channelDetails.profilePicture;
+            img.onload = () => {
+                if (img.complete) {
+                    setColor(`${prefix}-name`, img);
+                    setColor(`${prefix}-subs`, img);
+                }
+            };
+
+            document.getElementById(`${prefix}-name`).textContent = data.channelDetails.name;
+            document.getElementById(`${prefix}-subs`).textContent = 
+                prefix === 'channel1' 
+                    ? data.channelDetails.linearEstSubscriberCount.toLocaleString()
+                    : (data.channelDetails.linearEstSubscriberCount - baseAdjustment).toLocaleString();
+        };
+
+        updateChannel(data1, 'channel1');
+        updateChannel(data2, 'channel2');
+
+        const subDiff = Math.abs(data1.channelDetails.linearEstSubscriberCount - (data2.channelDetails.linearEstSubscriberCount - baseAdjustment));
+        odometerSubDiff.update(subDiff);
+    }
+
+    function updateCountdown() {
+        const now = new Date();
+        const timeLeft = endDate.getTime() - now.getTime();
+        if (timeLeft <= 0) {
+            document.getElementById('countdown-timer').textContent = "Countdown finished!";
+            return;
+        }
+        const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+        document.getElementById('countdown-timer').textContent = 
+            `${days} days ${hours} hours ${minutes} minutes ${seconds} seconds`;
+    }
+
+    function initialize() {
+        fetchDataAndUpdateUI();
+        setInterval(updateCountdown, 1000);
+        setInterval(fetchDataAndUpdateUI, 2000);
+        setInterval(() => {
+            fetchMrBeastStats().then(updateMrBeastGains);
+        }, 5000);
+    }
+
+    function fetchDataAndUpdateUI() {
+        Promise.all([fetchData(channel1Id), fetchData(channel2Id)])
+            .then(results => updateUI(...results));
+    }
+
+    const odometerSubDiff = new Odometer({
+        el: document.getElementById('sub-diff'),
+        value: 0,
+        format: '(,ddd)',
+        theme: 'minimal'
+    });
+
+    const odometerMrBeastGains = new Odometer({
+        el: document.getElementById('mrbeast-gains'),
+        value: 0,
+        format: '(,ddd)',
+        theme: 'minimal'
+    });
+
+    initialize();
+});
+</script>
+</body>
+</html>
