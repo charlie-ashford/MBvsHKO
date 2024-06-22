@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/odometer.js/0.4.8/themes/odometer-theme-minimal.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body, html {
     margin: 0;
@@ -21,7 +22,6 @@ body, html {
     min-height: 100vh;
     text-align: center;
 }
-
 .channels {
     display: flex;
     width: 100%;
@@ -29,12 +29,10 @@ body, html {
     gap: 20px;
     flex-wrap: wrap;
 }
-
 .gains {
     font-size: 36px;
     font-weight: bold;
 }
-
 .gains-text {
     font-size: 36px;
     font-weight: bold;
@@ -48,21 +46,47 @@ body, html {
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     border-radius: 10px;
     margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
 }
 
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.channel canvas {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 100%;
+    height: 100%;
+    opacity: 0.3;
+    z-index: 0;
+}
 img {
     width: 100px;
     height: 100px;
     border-radius: 50%;
     margin-bottom: 15px;
     border: 3px solid #333;
+    position: relative;
+    z-index: 1;
 }
-
+.channel h2, .channel p {
+    position: relative;
+    z-index: 1;
+}
+.sub-diff-header {
+    margin-bottom: 5px;  
+}
+.sub-diff-number {
+    margin-top: 0; 
+}
 .odometer {
     font-size: 36px;
     font-weight: bold;
 }
-
 @media (max-width: 768px) {
     .channels {
         flex-direction: column;
@@ -77,152 +101,262 @@ img {
 <body>
     <div class="channels">
         <div class="channel">
+            <canvas id="channel1-chart"></canvas>
             <img id="channel1-image" src="" alt="Channel 1 Thumbnail" crossorigin="anonymous">
-            <h2 id="channel1-name"></h2>
+            <a id="channel1-link" href="#" target="_blank">
+                <h2 id="channel1-name"></h2>
+            </a>
             <p class="odometer" id="channel1-subs"></p>
         </div>
         <div class="channel">
+            <canvas id="channel2-chart"></canvas>
             <img id="channel2-image" src="" alt="Channel 2 Thumbnail" crossorigin="anonymous">
-            <h2 id="channel2-name"></h2>
+            <a id="channel2-link" href="#" target="_blank">
+                <h2 id="channel2-name"></h2>
+            </a>
             <p class="odometer" id="channel2-subs"></p>
         </div>
     </div>
-    <h2>Subscriber Difference</h2>
-    <p class="odometer" id="sub-diff"></p>
-    <h2>MrBeast Gains in the last 24 hours</h2><br></span><span class="odometer" id="mrbeast-gains"></span></p><div class="countdown">
-        <h2 id="countdown-timer"></h2>
+    <h2 class="sub-diff-header">Subscriber Difference</h2>
+    <p class="sub-diff-number" id="sub-diff"></p>
+    
+    <h2 class="sub-diff-header">MrBeast Gains in the Last 24 Hours</h2>
+    <p><span class="sub-diff-number" id="mrbeast-gains"></span></p>
+    <br>
+    
+    <div class="countdown">
+        <h2 class="sub-diff-number" id="countdown-timer"></h2>
+        <p class="sub-diff-number" style="font-weight: bold; font-size: larger;">Until Hamster Kombat is 30 Days Old</p>
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/odometer.js/0.4.8/odometer.min.js"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const colorThief = new ColorThief();
-    const channel1Id = "UCozwejESfvl88CBBL0KgEhw";
-    const channel2Id = "UCX6OQ3DkcsbYNE6H8uQQuVA";
-    const baseAdjustment = 260577905;
-    const endDate = new Date("2024-06-23T15:01:14.464999Z");
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const colorThief = new ColorThief();
+        const channel1Id = "UCozwejESfvl88CBBL0KgEhw";
+        const channel2Id = "UCX6OQ3DkcsbYNE6H8uQQuVA";
+        const baseAdjustment = 260577905;
+        const endDate = new Date("2024-06-23T15:01:14.464999Z");
 
-    function fetchData(channelId) {
-        return fetch(`https://api.communitrics.com/${channelId}`)
-            .then(response => response.json())
-            .catch(error => {
-                console.error('Error fetching data:', error);
-                return null;
-            });
-    }
+        const charts = {
+            channel1: null,
+            channel2: null
+        };
 
-    function fetchMrBeastStats() {
-        return fetch(`https://api.communitrics.com/mrbeaststats`)
-            .then(response => response.json())
-            .catch(error => {
-                console.error('Error fetching MrBeast stats:', error);
-                return null;
-            });
-    }
+        const chartData = {
+            channel1: [],
+            channel2: []
+        };
 
-    function updateMrBeastGains(stats) {
-        if (stats && stats.totalSubscribersGained) {
-            odometerMrBeastGains.update(stats.totalSubscribersGained.toLocaleString('en-US'));
+        function fetchData(channelId) {
+            return fetch(`https://api.communitrics.com/${channelId}`)
+                .then(response => response.json())
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    return null;
+                });
         }
-    }
 
-    function getVibrancy(rgb) {
-        const max = Math.max(...rgb);
-        const min = Math.min(...rgb);
-        const saturation = max - min;
-        const brightness = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
-        return saturation * brightness;
-    }
-
-    function getMostVibrantColor(palette) {
-        return palette.reduce((mostVibrant, color) => 
-            getVibrancy(color) > getVibrancy(mostVibrant) ? color : mostVibrant
-        );
-    }
-
-    function setColor(elementId, img) {
-        try {
-            const palette = colorThief.getPalette(img, 8);
-            const mostVibrant = getMostVibrantColor(palette);
-            document.getElementById(elementId).style.color = `rgb(${mostVibrant.join(',')})`;
-        } catch (error) {
-            console.error('Error setting color:', error);
+        function fetchMrBeastStats() {
+            return fetch(`https://api.communitrics.com/mrbeaststats`)
+                .then(response => response.json())
+                .catch(error => {
+                    console.error('Error fetching MrBeast stats:', error);
+                    return null;
+                });
         }
-    }
 
-    function updateUI(data1, data2) {
+        function updateMrBeastGains(stats) {
+            if (stats && stats.totalSubscribersGained) {
+                odometerMrBeastGains.update(stats.totalSubscribersGained.toLocaleString('en-US'));
+                const channel2Color = document.getElementById('channel2-subs').style.color;
+                document.getElementById('mrbeast-gains').style.color = channel2Color;
+            }
+        }
+
+        function getVibrancy(rgb) {
+            const max = Math.max(...rgb);
+            const min = Math.min(...rgb);
+            const saturation = max - min;
+            const brightness = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+            return saturation * brightness;
+        }
+
+        function getMostVibrantColor(palette) {
+            return palette.reduce((mostVibrant, color) => 
+                getVibrancy(color) > getVibrancy(mostVibrant) ? color : mostVibrant
+            );
+        }
+
+        function setColor(elementId, img) {
+            try {
+                const palette = colorThief.getPalette(img, 8);
+                const mostVibrant = getMostVibrantColor(palette);
+                document.getElementById(elementId).style.color = `rgb(${mostVibrant.join(',')})`;
+                return `rgb(${mostVibrant.join(',')})`;
+            } catch (error) {
+                console.error('Error setting color:', error);
+                return null;
+            }
+        }
+
+        function createChart(canvasId, label, color) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: label,
+                    data: [],
+                    borderColor: color,
+                    backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.2)'),
+                    borderWidth: 1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        display: false,
+                        grid: {
+                            drawBorder: false,
+                            display: false
+                        }
+                    },
+                    y: {
+                        display: false,
+                        beginAtZero: false,
+                        grid: {
+                            drawBorder: false,
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                animation: false,
+                elements: {
+                    point: {
+                        radius: 0
+                    },
+                    line: {
+                        tension: 0
+                    }
+                },
+                layout: {
+                    padding: 0
+                }
+            }
+        });
+        }
+
+        function updateChart(chart, data, label) {
+            const now = new Date();
+            chart.data.labels.push(now.toLocaleTimeString());
+            chart.data.datasets[0].data.push(data);
+            
+            if (chart.data.labels.length > 50) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            
+            chart.update();
+        }
+
+        function updateUI(data1, data2) {
         if (!data1 || !data2) return;
 
-        const updateChannel = (data, prefix) => {
+        const updateChannel = (data, prefix, channelId) => {
             const img = document.getElementById(`${prefix}-image`);
             img.src = data.channelDetails.profilePicture;
             img.onload = () => {
                 if (img.complete) {
-                    setColor(`${prefix}-name`, img);
+                    const color = setColor(`${prefix}-name`, img);
                     setColor(`${prefix}-subs`, img);
+
+                    if (!charts[prefix]) {
+                        charts[prefix] = createChart(`${prefix}-chart`, data.channelDetails.name, color);
+                    }
                 }
             };
 
             document.getElementById(`${prefix}-name`).textContent = data.channelDetails.name;
-            document.getElementById(`${prefix}-subs`).textContent = 
-                prefix === 'channel1' 
-                    ? data.channelDetails.linearEstSubscriberCount.toLocaleString('en-US')
-                    : (data.channelDetails.linearEstSubscriberCount - baseAdjustment).toLocaleString('en-US');
+            document.getElementById(`${prefix}-link`).href = `https://www.youtube.com/${channelId}`;
+            const subCount = prefix === 'channel1'
+                ? data.channelDetails.linearEstSubscriberCount
+                : (data.channelDetails.linearEstSubscriberCount - baseAdjustment);
+
+            document.getElementById(`${prefix}-subs`).textContent = subCount.toLocaleString('en-US');
+
+            chartData[prefix].push(subCount);
+            if (charts[prefix]) {
+                updateChart(charts[prefix], subCount, data.channelDetails.name);
+            }
         };
 
-        updateChannel(data1, 'channel1');
-        updateChannel(data2, 'channel2');
+        updateChannel(data1, 'channel1', channel1Id);
+        updateChannel(data2, 'channel2', channel2Id);
 
         const subDiff = Math.abs(data1.channelDetails.linearEstSubscriberCount - (data2.channelDetails.linearEstSubscriberCount - baseAdjustment));
         odometerSubDiff.update(subDiff.toLocaleString('en-US'));
-    }
 
-    function updateCountdown() {
-        const now = new Date();
-        const timeLeft = endDate.getTime() - now.getTime();
-        if (timeLeft <= 0) {
-            document.getElementById('countdown-timer').textContent = "Countdown finished!";
-            return;
+        const color1 = document.getElementById('channel1-subs').style.color;
+        const color2 = document.getElementById('channel2-subs').style.color;
+        document.getElementById('sub-diff').style.color = data1.channelDetails.linearEstSubscriberCount > data2.channelDetails.linearEstSubscriberCount - baseAdjustment ? color1 : color2;
         }
-        const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
-        document.getElementById('countdown-timer').textContent = 
-            `${days} days ${hours} hours ${minutes} minutes ${seconds} seconds`;
-    }
+        function updateCountdown() {
+            const now = new Date();
+            const timeLeft = endDate.getTime() - now.getTime();
+            if (timeLeft <= 0) {
+                document.getElementById('countdown-timer').textContent = "Countdown finished!";
+                return;
+            }
+            const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
-    function initialize() {
-        fetchDataAndUpdateUI();
-        setInterval(updateCountdown, 1000);
-        setInterval(fetchDataAndUpdateUI, 2000);
-        setInterval(() => {
-            fetchMrBeastStats().then(updateMrBeastGains);
-        }, 2000);
-    }
+            document.getElementById('countdown-timer').textContent = 
+                `${days} days ${hours} hours ${minutes} minutes ${seconds} seconds`;
+        }
 
-    function fetchDataAndUpdateUI() {
-        Promise.all([fetchData(channel1Id), fetchData(channel2Id)])
-            .then(results => updateUI(...results));
-    }
+        function initialize() {
+            fetchDataAndUpdateUI();
+            setInterval(updateCountdown, 1000);
+            setInterval(fetchDataAndUpdateUI, 2000);
+            setInterval(() => {
+                fetchMrBeastStats().then(updateMrBeastGains);
+            }, 2000);
+        }
 
-    const odometerSubDiff = new Odometer({
-        el: document.getElementById('sub-diff'),
-        value: 0,
-        format: '(,ddd)',
-        theme: 'minimal'
+        function fetchDataAndUpdateUI() {
+            Promise.all([fetchData(channel1Id), fetchData(channel2Id)])
+                .then(results => updateUI(...results));
+        }
+
+        const odometerSubDiff = new Odometer({
+            el: document.getElementById('sub-diff'),
+            value: 0,
+            format: '(,ddd)',
+            theme: 'minimal'
+        });
+
+        const odometerMrBeastGains = new Odometer({
+            el: document.getElementById('mrbeast-gains'),
+            value: 0,
+            format: '(,ddd)',
+            theme: 'minimal'
+        });
+
+        initialize();
     });
-
-    const odometerMrBeastGains = new Odometer({
-        el: document.getElementById('mrbeast-gains'),
-        value: 0,
-        format: '(,ddd)',
-        theme: 'minimal'
-    });
-
-    initialize();
-});
 </script>
 </body>
 </html>
