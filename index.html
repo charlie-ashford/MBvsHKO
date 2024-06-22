@@ -55,6 +55,7 @@ body, html {
     cursor: pointer;
     transition: transform 0.3s ease, width 0.3s ease, height 0.3s ease;
     transform-origin: center center;
+    border: 3px solid transparent; 
 }
 
 .channel:hover:not(.fullscreen) {
@@ -73,7 +74,7 @@ body, html {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    overflow: auto; /* Allow scrolling */
+    overflow: auto; 
 }
 
 .fullscreen .odometer,
@@ -259,8 +260,11 @@ img {
             const color = `rgb(${mostVibrant.join(',')})`;
             document.getElementById(elementId).style.color = color;
             img.style.borderColor = color;
+            const borderColor = `rgba(${mostVibrant.join(',')}, 0.7)`;
+            document.getElementById(elementId).closest('.channel').style.borderColor = borderColor;
+
             return color;
-        } catch (error) {
+            } catch (error) {
             console.error('Error setting color:', error);
             return null;
         }
