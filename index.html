@@ -59,7 +59,6 @@
         border-radius: 10px;
         margin-bottom: 20px;
         position: relative;
-        cursor: pointer;
         transition: transform 0.3s ease, width 0.3s ease, height 0.3s ease;
         transform-origin: center center;
         border: 3px solid transparent;
@@ -67,6 +66,10 @@
 
       .channel:hover:not(.fullscreen) {
         transform: scale(1.05);
+      }
+
+      .fullscreen-mode .channel:not(.fullscreen) {
+        display: none;
       }
 
       .fullscreen {
@@ -82,7 +85,7 @@
         justify-content: center;
         align-items: center;
         overflow: auto;
-        border: none !important;
+        box-sizing: border-box;
       }
 
       .fullscreen .odometer,
@@ -136,19 +139,82 @@
       }
 
       .back-button::before {
-        content: '←';
+        content: "←";
         margin-right: 8px;
         font-size: 24px;
       }
 
       @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       a {
         text-decoration: none;
         color: inherit;
+        cursor: pointer;
+      }
+
+      .modal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        background-color: #1e1e1e;
+        border: 3px solid transparent;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        padding: 40px;
+        z-index: 2000;
+        text-align: center;
+        opacity: 0;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+      }
+
+      .modal.visible {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+      }
+
+      .modal h2 {
+        margin: 0 0 20px;
+      }
+
+      .modal-buttons {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 20px;
+      }
+
+      .modal-button {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
+        border: none;
+        padding: 12px 24px;
+        cursor: pointer;
+        border-radius: 30px;
+        font-size: 18px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .modal-button:hover {
+        background-color: rgba(255, 255, 255, 0.25);
+        transform: scale(1.05) translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      }
+
+      .modal-button:active {
+        transform: scale(0.98) translateY(1px);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
       }
 
       .channel canvas {
@@ -160,6 +226,7 @@
         opacity: 0.3;
         z-index: 0;
       }
+
       img {
         width: 100px;
         height: 100px;
@@ -226,7 +293,11 @@
           <h2 id="channel2-name"></h2>
         </a>
         <p class="odometer" id="channel2-subs"></p>
-        <p class="odometer" id="channel2-nia-subs" style="font-size: 24px; margin-top: -10px; visibility: hidden;"></p>
+        <p
+          class="odometer"
+          id="channel2-nia-subs"
+          style="font-size: 24px; margin-top: -10px; visibility: hidden"
+        ></p>
       </div>
     </div>
     <h2 class="sub-diff-header">Subscriber Difference</h2>
@@ -261,6 +332,73 @@
           channel1: [],
           channel2: [],
         };
+
+        const modal = document.createElement("div");
+        modal.className = "modal";
+        modal.innerHTML = `
+    <h2 id="modal-message">Do you want to go to this channel?</h2>
+    <div class="modal-buttons">
+      <button class="modal-button" id="modal-yes">Yes</button>
+      <button class="modal-button" id="modal-no">No</button>
+    </div>
+  `;
+        document.body.appendChild(modal);
+
+        let targetLink = null;
+        let channelName = "";
+
+        document.querySelectorAll(".channel a").forEach((link) => {
+          link.addEventListener("click", (event) => {
+            event.preventDefault();
+            targetLink = event.currentTarget.href;
+            channelName = link.querySelector("h2").textContent;
+            showModal(link.closest(".channel"));
+          });
+        });
+
+        document.getElementById("modal-yes").addEventListener("click", () => {
+          if (targetLink) {
+            window.location.href = targetLink;
+          }
+          closeModal();
+        });
+
+        document.getElementById("modal-no").addEventListener("click", () => {
+          closeModal();
+        });
+
+        function showModal(channelDiv) {
+          const channelColor = channelDiv.querySelector("h2").style.color;
+          const darkerColor = adjustBrightness(channelColor, -0.3);
+          const rgbaColor = darkerColor
+            .replace("rgb", "rgba")
+            .replace(")", ", 0.95)");
+          modal.style.backgroundColor = rgbaColor;
+          modal.style.borderColor = darkerColor;
+          modal.querySelectorAll(".modal-button").forEach((button) => {
+            button.style.backgroundColor = rgbaColor.replace(
+              ", 0.95)",
+              ", 0.15)"
+            );
+            button.style.color = "#ffffff";
+          });
+          document.getElementById(
+            "modal-message"
+          ).innerHTML = `You will exit this page and go to ${channelName} on YouTube.<br>Do you wish to proceed?`;
+          modal.classList.add("visible");
+        }
+
+        function closeModal() {
+          modal.classList.remove("visible");
+        }
+
+        function adjustBrightness(color, amount) {
+          const colorArray = color.match(/\d+/g).map(Number);
+          const [r, g, b] = colorArray.map((value) =>
+            Math.max(Math.min(value + amount * 255, 255), 0)
+          );
+          return `rgb(${r}, ${g}, ${b})`;
+        }
 
         function fetchData(channelId) {
           return fetch(`https://api.communitrics.com/${channelId}`)
@@ -442,19 +580,25 @@
             }
 
             if (prefix === "channel2") {
-            fetch('https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCX6OQ3DkcsbYNE6H8uQQuVA')
-              .then(response => response.json())
-              .then(niaData => {
-                const niaSubs = niaData.estSubCount;
-                const niaSubsElement = document.getElementById('channel2-nia-subs');
-                niaSubsElement.textContent = niaSubs.toLocaleString("en-US");
-                niaSubsElement.style.color = document.getElementById('channel2-subs').style.color;
-                niaSubsElement.style.visibility = 'visible';
-              })
-              .catch(error => {
-                document.getElementById('channel2-nia-subs').style.visibility = 'hidden';
-              });
-          }
+              fetch(
+                "https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCX6OQ3DkcsbYNE6H8uQQuVA"
+              )
+                .then((response) => response.json())
+                .then((niaData) => {
+                  const niaSubs = niaData.estSubCount;
+                  const niaSubsElement =
+                    document.getElementById("channel2-nia-subs");
+                  niaSubsElement.textContent = niaSubs.toLocaleString("en-US");
+                  niaSubsElement.style.color =
+                    document.getElementById("channel2-subs").style.color;
+                  niaSubsElement.style.visibility = "visible";
+                })
+                .catch((error) => {
+                  document.getElementById(
+                    "channel2-nia-subs"
+                  ).style.visibility = "hidden";
+                });
+            }
           };
 
           updateChannel(data1, "channel1", channel1Id);
@@ -554,34 +698,48 @@
         let originalParent;
 
         function enterFullScreen(channelDiv) {
-        originalParent = channelDiv.parentNode;
-        channelDiv.classList.add("fullscreen");
-        const backButton = document.createElement("button");
-        backButton.textContent = "Back";
-        backButton.classList.add("back-button");
-        backButton.style.animation = "fadeIn 0.4s ease-out";
-        const channelColor = window.getComputedStyle(channelDiv.querySelector("h2")).color;
-        backButton.style.backgroundColor = channelColor.replace("rgb", "rgba").replace(")", ", 0.15)");
-        backButton.style.color = channelColor;
-        
-        backButton.addEventListener("click", (event) => {
-          event.stopPropagation();
-          exitFullScreen(channelDiv);
-        });
-        channelDiv.appendChild(backButton);
-        document.body.appendChild(channelDiv);
+          originalParent = channelDiv.parentNode;
+          channelDiv.classList.add("fullscreen");
+          document.body.classList.add("fullscreen-mode");
 
-        const canvas = channelDiv.querySelector("canvas");
-        const chartId = canvas.id.replace("-chart", "");
-        const chartInstance = charts[chartId];
-        if (chartInstance) {
-          new Chart(canvas, chartInstance.config);
+          const backButton = document.createElement("button");
+          backButton.textContent = "Back";
+          backButton.classList.add("back-button");
+          backButton.style.animation = "fadeIn 0.4s ease-out";
+          const channelColor = window.getComputedStyle(
+            channelDiv.querySelector("h2")
+          ).color;
+          backButton.style.backgroundColor = channelColor
+            .replace("rgb", "rgba")
+            .replace(")", ", 0.15)");
+          backButton.style.color = channelColor;
+
+          backButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            exitFullScreen(channelDiv);
+          });
+          channelDiv.appendChild(backButton);
+          document.body.appendChild(channelDiv);
+
+          const canvas = channelDiv.querySelector("canvas");
+          const chartId = canvas.id.replace("-chart", "");
+          const chartInstance = charts[chartId];
+          if (chartInstance) {
+            new Chart(canvas, chartInstance.config);
+          }
+
+          const borderColor = window.getComputedStyle(channelDiv).borderColor;
+          channelDiv.style.borderColor = borderColor;
+
+          channelDiv.style.border = `3px solid ${borderColor}`;
+          channelDiv.style.zIndex = 1000;
+          document.body.style.overflow = "hidden";
         }
-        channelDiv.style.border = "none";
-      }
 
         function exitFullScreen(channelDiv) {
           channelDiv.classList.remove("fullscreen");
+          document.body.classList.remove("fullscreen-mode");
+
           const backButton = channelDiv.querySelector(".back-button");
           if (backButton) {
             backButton.remove();
@@ -601,7 +759,10 @@
               channelDiv.style.borderColor = `rgba(${color.slice(4, -1)}, 0.7)`;
             };
           }
+          channelDiv.style.zIndex = "auto";
+          document.body.style.overflow = "auto";
         }
+
         initialize();
       });
     </script>
