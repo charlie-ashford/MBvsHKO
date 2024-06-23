@@ -400,6 +400,9 @@
           return `rgb(${r}, ${g}, ${b})`;
         }
 
+        let channel1Details;
+        let channel2Details;
+
         function fetchData(channelId) {
           return fetch(`https://api.communitrics.com/${channelId}`)
             .then((response) => response.json())
@@ -540,78 +543,84 @@
           chart.update();
         }
 
-        function updateUI(data1, data2) {
-          if (!data1 || !data2) return;
+        function updateUI(subCounts) {
+          if (channel1Details && channel2Details) {
+            updateChannel(
+              channel1Details,
+              "channel1",
+              channel1Id,
+              subCounts.channel1
+            );
+            updateChannel(
+              channel2Details,
+              "channel2",
+              channel2Id,
+              subCounts.channel2 - baseAdjustment
+            );
 
-          const updateChannel = (data, prefix, channelId) => {
-            const img = document.getElementById(`${prefix}-image`);
-            img.src = data.channelDetails.profilePicture;
-            img.onload = () => {
-              if (img.complete) {
-                const color = setColor(`${prefix}-name`, img);
-                setColor(`${prefix}-subs`, img);
+            const subDiff = Math.abs(
+              subCounts.channel1 - (subCounts.channel2 - baseAdjustment)
+            );
+            odometerSubDiff.update(subDiff.toLocaleString("en-US"));
 
-                if (!charts[prefix]) {
-                  charts[prefix] = createChart(
-                    `${prefix}-chart`,
-                    data.channelDetails.name,
-                    color
-                  );
-                }
+            const color1 = document.getElementById("channel1-subs").style.color;
+            const color2 = document.getElementById("channel2-subs").style.color;
+            document.getElementById("sub-diff").style.color =
+              subCounts.channel1 > subCounts.channel2 - baseAdjustment
+                ? color1
+                : color2;
+          }
+        }
+
+        function updateChannel(details, prefix, channelId, subCount) {
+          const img = document.getElementById(`${prefix}-image`);
+          img.src = details.channelDetails.profilePicture;
+          img.onload = () => {
+            if (img.complete) {
+              const color = setColor(`${prefix}-name`, img);
+              setColor(`${prefix}-subs`, img);
+
+              if (!charts[prefix]) {
+                charts[prefix] = createChart(
+                  `${prefix}-chart`,
+                  details.channelDetails.name,
+                  color
+                );
               }
-            };
-
-            document.getElementById(`${prefix}-name`).textContent =
-              data.channelDetails.name;
-            document.getElementById(
-              `${prefix}-link`
-            ).href = `https://www.youtube.com/channel/${channelId}`;
-            const subCount =
-              prefix === "channel1"
-                ? data.channelDetails.linearEstSubscriberCount
-                : data.channelDetails.linearEstSubscriberCount - baseAdjustment;
-
-            document.getElementById(`${prefix}-subs`).textContent =
-              subCount.toLocaleString("en-US");
-
-            chartData[prefix].push(subCount);
-            if (charts[prefix]) {
-              updateChart(charts[prefix], subCount, data.channelDetails.name);
             }
+          };
 
-            if (prefix === "channel2") {
+          document.getElementById(`${prefix}-name`).textContent =
+            details.channelDetails.name;
+          document.getElementById(
+            `${prefix}-link`
+          ).href = `https://www.youtube.com/channel/${channelId}`;
+
+          document.getElementById(`${prefix}-subs`).textContent =
+            subCount.toLocaleString("en-US");
+
+          chartData[prefix].push(subCount);
+          if (charts[prefix]) {
+            updateChart(charts[prefix], subCount, details.channelDetails.name);
+          }
+
+          if (prefix === "channel2") {
             fetch("https://api.communitrics.com/UCX6OQ3DkcsbYNE6H8uQQuVA")
               .then((response) => response.json())
               .then((data) => {
                 const realSubs = data.channelDetails.linearEstSubscriberCount;
-                const realSubsElement = document.getElementById("channel2-real-subs");
+                const realSubsElement =
+                  document.getElementById("channel2-real-subs");
                 realSubsElement.textContent = realSubs.toLocaleString("en-US");
                 realSubsElement.style.color =
                   document.getElementById("channel2-subs").style.color;
-                  realSubsElement.style.visibility = "visible";
+                realSubsElement.style.visibility = "visible";
               })
               .catch((error) => {
-                document.getElementById("channel2-real-subs").style.visibility = "hidden";
+                document.getElementById("channel2-real-subs").style.visibility =
+                  "hidden";
               });
           }
-        }
-
-          updateChannel(data1, "channel1", channel1Id);
-          updateChannel(data2, "channel2", channel2Id);
-
-          const subDiff = Math.abs(
-            data1.channelDetails.linearEstSubscriberCount -
-              (data2.channelDetails.linearEstSubscriberCount - baseAdjustment)
-          );
-          odometerSubDiff.update(subDiff.toLocaleString("en-US"));
-
-          const color1 = document.getElementById("channel1-subs").style.color;
-          const color2 = document.getElementById("channel2-subs").style.color;
-          document.getElementById("sub-diff").style.color =
-            data1.channelDetails.linearEstSubscriberCount >
-            data2.channelDetails.linearEstSubscriberCount - baseAdjustment
-              ? color1
-              : color2;
         }
 
         function updateCountdown() {
@@ -637,12 +646,22 @@
         }
 
         function initialize() {
-          fetchDataAndUpdateUI();
-          setInterval(updateCountdown, 1000);
-          setInterval(fetchDataAndUpdateUI, 2000);
+          fetchData(channel1Id).then((data) => {
+            channel1Details = data;
+            fetchData(channel2Id).then((data) => {
+              channel2Details = data;
+              fetchSubscriberCounts();
+              setInterval(fetchSubscriberCounts, 3_000);
+            });
+          });
+
+          setInterval(updateCountdown, 1_000);
+          fetchMrBeastStats().then(updateMrBeastGains);
+          document.getElementById("mrbeast-gains").style.color =
+            document.getElementById("channel2-subs").style.color;
           setInterval(() => {
             fetchMrBeastStats().then(updateMrBeastGains);
-          }, 2000);
+          }, 15_000);
 
           document.querySelectorAll(".channel").forEach((channelDiv) => {
             if (window.innerWidth > 768) {
@@ -660,9 +679,15 @@
           });
         }
 
-        function fetchDataAndUpdateUI() {
+        function fetchSubscriberCounts() {
           Promise.all([fetchData(channel1Id), fetchData(channel2Id)]).then(
-            (results) => updateUI(...results)
+            ([channel1Data, channel2Data]) => {
+              const subCounts = {
+                channel1: channel1Data.channelDetails.linearEstSubscriberCount,
+                channel2: channel2Data.channelDetails.linearEstSubscriberCount,
+              };
+              updateUI(subCounts);
+            }
           );
         }
 
