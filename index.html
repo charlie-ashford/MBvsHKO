@@ -295,7 +295,7 @@
         <p class="odometer" id="channel2-subs"></p>
         <p
           class="odometer"
-          id="channel2-nia-subs"
+          id="channel2-real-subs"
           style="font-size: 24px; margin-top: -10px; visibility: hidden"
         ></p>
       </div>
@@ -580,26 +580,21 @@
             }
 
             if (prefix === "channel2") {
-              fetch(
-                "https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCX6OQ3DkcsbYNE6H8uQQuVA"
-              )
-                .then((response) => response.json())
-                .then((niaData) => {
-                  const niaSubs = niaData.estSubCount;
-                  const niaSubsElement =
-                    document.getElementById("channel2-nia-subs");
-                  niaSubsElement.textContent = niaSubs.toLocaleString("en-US");
-                  niaSubsElement.style.color =
-                    document.getElementById("channel2-subs").style.color;
-                  niaSubsElement.style.visibility = "visible";
-                })
-                .catch((error) => {
-                  document.getElementById(
-                    "channel2-nia-subs"
-                  ).style.visibility = "hidden";
-                });
-            }
-          };
+            fetch("https://api.communitrics.com/UCX6OQ3DkcsbYNE6H8uQQuVA")
+              .then((response) => response.json())
+              .then((data) => {
+                const realSubs = data.channelDetails.linearEstSubscriberCount;
+                const realSubsElement = document.getElementById("channel2-real-subs");
+                realSubsElement.textContent = realSubs.toLocaleString("en-US");
+                realSubsElement.style.color =
+                  document.getElementById("channel2-subs").style.color;
+                  realSubsElement.style.visibility = "visible";
+              })
+              .catch((error) => {
+                document.getElementById("channel2-real-subs").style.visibility = "hidden";
+              });
+          }
+        }
 
           updateChannel(data1, "channel1", channel1Id);
           updateChannel(data2, "channel2", channel2Id);
@@ -685,8 +680,8 @@
           theme: "minimal",
         });
 
-        const odometerNiaSubs = new Odometer({
-          el: document.getElementById("channel2-nia-subs"),
+        const odometerRealSubs = new Odometer({
+          el: document.getElementById("channel2-real-subs"),
           value: 0,
           format: "(,ddd)",
           theme: "minimal",
