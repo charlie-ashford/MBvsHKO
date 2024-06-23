@@ -105,18 +105,45 @@
 
       .back-button {
         position: absolute;
-        top: 20px;
-        left: 20px;
-        background-color: #333;
-        color: #e0e0e0;
+        top: 30px;
+        left: 30px;
+        background-color: rgba(255, 255, 255, 0.15);
+        color: #ffffff;
         border: none;
-        padding: 10px 20px;
-        margin-left: 20px;
-        margin-top: 20px;
+        padding: 12px 24px;
         cursor: pointer;
-        border-radius: 5px;
-        font-size: 16px;
+        border-radius: 30px;
+        font-size: 18px;
+        font-weight: bold;
         z-index: 1001;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .back-button:hover {
+        background-color: rgba(255, 255, 255, 0.25);
+        transform: scale(1.05) translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      }
+
+      .back-button:active {
+        transform: scale(0.98) translateY(1px);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .back-button::before {
+        content: '←';
+        margin-right: 8px;
+        font-size: 24px;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
       }
 
       a {
@@ -199,6 +226,7 @@
           <h2 id="channel2-name"></h2>
         </a>
         <p class="odometer" id="channel2-subs"></p>
+        <p class="odometer" id="channel2-nia-subs" style="font-size: 24px; margin-top: -10px; visibility: hidden;"></p>
       </div>
     </div>
     <h2 class="sub-diff-header">Subscriber Difference</h2>
@@ -412,6 +440,21 @@
             if (charts[prefix]) {
               updateChart(charts[prefix], subCount, data.channelDetails.name);
             }
+
+            if (prefix === "channel2") {
+            fetch('https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCX6OQ3DkcsbYNE6H8uQQuVA')
+              .then(response => response.json())
+              .then(niaData => {
+                const niaSubs = niaData.estSubCount;
+                const niaSubsElement = document.getElementById('channel2-nia-subs');
+                niaSubsElement.textContent = niaSubs.toLocaleString("en-US");
+                niaSubsElement.style.color = document.getElementById('channel2-subs').style.color;
+                niaSubsElement.style.visibility = 'visible';
+              })
+              .catch(error => {
+                document.getElementById('channel2-nia-subs').style.visibility = 'hidden';
+              });
+          }
           };
 
           updateChannel(data1, "channel1", channel1Id);
@@ -498,32 +541,44 @@
           theme: "minimal",
         });
 
+        const odometerNiaSubs = new Odometer({
+          el: document.getElementById("channel2-nia-subs"),
+          value: 0,
+          format: "(,ddd)",
+          theme: "minimal",
+        });
+
         const originalOrder = Array.from(
           document.querySelectorAll(".channels .channel")
         );
         let originalParent;
 
         function enterFullScreen(channelDiv) {
-          originalParent = channelDiv.parentNode;
-          channelDiv.classList.add("fullscreen");
-          const backButton = document.createElement("button");
-          backButton.textContent = "Back";
-          backButton.classList.add("back-button");
-          backButton.addEventListener("click", (event) => {
-            event.stopPropagation();
-            exitFullScreen(channelDiv);
-          });
-          channelDiv.appendChild(backButton);
-          document.body.appendChild(channelDiv);
+        originalParent = channelDiv.parentNode;
+        channelDiv.classList.add("fullscreen");
+        const backButton = document.createElement("button");
+        backButton.textContent = "Back";
+        backButton.classList.add("back-button");
+        backButton.style.animation = "fadeIn 0.4s ease-out";
+        const channelColor = window.getComputedStyle(channelDiv.querySelector("h2")).color;
+        backButton.style.backgroundColor = channelColor.replace("rgb", "rgba").replace(")", ", 0.15)");
+        backButton.style.color = channelColor;
+        
+        backButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          exitFullScreen(channelDiv);
+        });
+        channelDiv.appendChild(backButton);
+        document.body.appendChild(channelDiv);
 
-          const canvas = channelDiv.querySelector("canvas");
-          const chartId = canvas.id.replace("-chart", "");
-          const chartInstance = charts[chartId];
-          if (chartInstance) {
-            new Chart(canvas, chartInstance.config);
-          }
-          channelDiv.style.border = "none";
+        const canvas = channelDiv.querySelector("canvas");
+        const chartId = canvas.id.replace("-chart", "");
+        const chartInstance = charts[chartId];
+        if (chartInstance) {
+          new Chart(canvas, chartInstance.config);
         }
+        channelDiv.style.border = "none";
+      }
 
         function exitFullScreen(channelDiv) {
           channelDiv.classList.remove("fullscreen");
