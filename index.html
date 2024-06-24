@@ -158,7 +158,8 @@
       a {
         text-decoration: none;
         color: inherit;
-        cursor: pointer;
+        cursor: default;
+        pointer-events: none;
       }
 
       .modal {
@@ -234,7 +235,13 @@
         margin-bottom: 15px;
         border: 5px solid #333;
         position: relative;
+        transition: transform 0.3s ease;
+        cursor: pointer;
         z-index: 1;
+      }
+
+      img:hover {
+        transform: scale(1.1);
       }
       .channel h2,
       .channel p {
@@ -340,12 +347,15 @@
         let targetLink = null;
         let channelName = "";
 
-        document.querySelectorAll(".channel a").forEach((link) => {
-          link.addEventListener("click", (event) => {
+        document.querySelectorAll(".channel img").forEach((img) => {
+          img.addEventListener("click", (event) => {
+            event.stopPropagation();
             event.preventDefault();
-            targetLink = event.currentTarget.href;
-            channelName = link.querySelector("h2").textContent;
-            showModal(link.closest(".channel"));
+            const channelDiv = event.currentTarget.closest(".channel");
+            const link = channelDiv.querySelector("a");
+            targetLink = link.href;
+            channelName = channelDiv.querySelector("h2").textContent;
+            showModal(channelDiv);
           });
         });
 
@@ -616,28 +626,6 @@
           }
         }
 
-        function updateCountdown() {
-          const now = new Date();
-          const timeLeft = endDate.getTime() - now.getTime();
-          if (timeLeft <= 0) {
-            document.getElementById("countdown-timer").textContent =
-              "Countdown finished!";
-            return;
-          }
-          const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-          const hours = Math.floor(
-            (timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-          );
-          const minutes = Math.floor(
-            (timeLeft % (1000 * 60 * 60)) / (1000 * 60)
-          );
-          const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-
-          document.getElementById(
-            "countdown-timer"
-          ).textContent = `${days} days ${hours} hours ${minutes} minutes ${seconds} seconds`;
-        }
-
         function initialize() {
           fetchData(channel1Id).then((data) => {
             channel1Details = data;
@@ -648,7 +636,6 @@
             });
           });
 
-          setInterval(updateCountdown, 1_000);
           fetchMrBeastStats().then(updateMrBeastGains);
           document.getElementById("mrbeast-gains").style.color =
             document.getElementById("channel2-subs").style.color;
