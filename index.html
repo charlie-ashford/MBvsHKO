@@ -273,7 +273,7 @@
     </style>
   </head>
   <body>
-    <h2>MrBeast vs Hamster Kombat Gains (Last 30 Days)</h2>
+    <h2>MrBeast vs Hamster Kombat Gains (Since Creation of Hamster Kombat)</h2>
     <div class="channels">
       <div class="channel" data-channel="channel1">
         <canvas id="channel1-chart"></canvas>
@@ -316,151 +316,454 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/odometer.js/0.4.8/odometer.min.js"></script>
     <script>
-      const calcGrowth = (arr, len, dur, val) => {
-        let realDate = true;
-        let dates = [];
-        let counts = [];
-        if (realDate) {
-          dates = arr.map((a) => new Date(a.last_updated).getTime());
-          counts = arr.map((a) => a.previous_sub_count);
-        }
-        len = len ?? arr.length;
-        dur = dur ?? len;
+      document.addEventListener("DOMContentLoaded", function () {
+        const colorThief = new ColorThief();
+        const channel1Id = "UCozwejESfvl88CBBL0KgEhw";
+        const channel2Id = "UCX6OQ3DkcsbYNE6H8uQQuVA";
+        const baseAdjustment = 260577905;
+        const endDate = new Date("2024-06-23T15:01:14.464999Z");
 
-        if (!val) {
-          if (realDate) {
-            return arr.length < len
-              ? Math.round(
-                  ((counts.slice(-1)[0] - counts.slice(-Math.abs(len))[0]) /
-                    ((dates.slice(-1)[0] - dates.slice(-Math.abs(len))[0]) / 1000)) *
-                    dur
-                )
-              : counts.slice(-1)[0] - counts.slice(-Math.abs(len))[0];
-          } else {
-            return arr.length < len
-              ? Math.round(
-                  ((arr.slice(-1)[0] - arr.slice(-Math.abs(len))[0]) / arr.length) *
-                    len
-                )
-              : arr.slice(-1)[0] - arr.slice(-Math.abs(len))[0];
-          }
-        } else {
-          return ((arr.slice(-1)[0] - arr[0]) / arr.length) * val;
-        }
-      };
+        const charts = {
+          channel1: null,
+          channel2: null,
+        };
 
-      function calcCurrentStats(sincePublished, compareTime, compareData) {
-        let compareSincePublished = [];
-        for (let i = 0; i < compareTime.length; i++) {
-          compareSincePublished[i] = new Date(compareTime[i]).getTime() - new Date(compareTime[0]).getTime();
-        }
+        const chartData = {
+          channel1: [],
+          channel2: [],
+        };
 
-        let preTime = compareSincePublished.filter(c => c < sincePublished).slice(-1)[0];
-        let nextTime = compareSincePublished.filter(c => c >= sincePublished)[0];
+        const modal = document.createElement("div");
+        modal.className = "modal";
+        modal.innerHTML = `
+    <h2 id="modal-message">Do you want to go to this channel?</h2>
+    <div class="modal-buttons">
+      <button class="modal-button" id="modal-yes">Yes</button>
+      <button class="modal-button" id="modal-no">No</button>
+    </div>
+  `;
+        document.body.appendChild(modal);
 
-        if (sincePublished > compareSincePublished.slice(-1)[0]) {
-          preTime = compareSincePublished.slice(-2)[0];
-          nextTime = compareSincePublished.slice(-1)[0];
-        }
+        let targetLink = null;
+        let channelName = "";
 
-        let gapTime = nextTime - preTime;
-        let progress = (sincePublished - preTime) / gapTime;
-
-        let compareDataPre = compareData[compareSincePublished.indexOf(preTime)];
-        let compareDataNext = compareData[compareSincePublished.indexOf(nextTime)];
-        let compareDataPNgap = compareDataNext - compareDataPre;
-
-        let compareCurCount = compareDataPre + (compareDataPNgap * progress);
-        return Math.floor(compareCurCount);
-      }
-
-let mrbeastData;
-let hamsterData;
-
-function getAnalytics() {
-  Promise.all([
-    fetch("https://api.communitrics.com/mrbeast"),
-    fetch("https://api.communitrics.com/UCozwejESfvl88CBBL0KgEhw"),
-  ])
-  .then((responses) => Promise.all(responses.map((res) => res.json())))
-  .then((rawData) => {
-    mrbeastData = rawData[0];
-    hamsterData = rawData[1].data;
-    hamsterHrGains = Math.round(rawData[1].channelDetails.mostRecentAverage / 24);
-  });
-}
-
-function getData() {
-  Promise.all([
-    fetch("https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCX6OQ3DkcsbYNE6H8uQQuVA"),
-    fetch("https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCozwejESfvl88CBBL0KgEhw")
-  ])
-  .then((responses) => Promise.all(responses.map((res) => res.json())))
-  .then((rawData) => {
-    let P30DTime = 30 * 24 * 60 * 60 * 1000;
-    let P30DDate = Date.now() - P30DTime;
-    let hamsterCreatedDate = new Date("2024-05-24T15:01:14.464999Z").getTime();
-    let sinceCreated = Date.now() - hamsterCreatedDate;
-    let past30Dtime = sinceCreated > P30DTime ? P30DDate : hamsterCreatedDate;
-    let P30DDateString = new Date(Math.max(P30DDate, hamsterCreatedDate)).toISOString();
-    let mrbeastCount = rawData[0].estSubCount;
-    let hamsterCount = rawData[1].estSubCount;
-
-    let mrbeastP30D = mrbeastData.reduce((prev, curr) => {
-      return (Math.abs(new Date(curr?.currentTime).getTime() - past30Dtime) < Math.abs(new Date(prev?.currentTime).getTime() - past30Dtime) ? curr : prev);
-    }, mrbeastData[0]);
-
-    let mrbeastP30DSubCount = mrbeastP30D.count;
-
-    if (sinceCreated > P30DTime) {
-      mrbeastP30DSubCount = calcCurrentStats((Date.now() - new Date(mrbeastData[0].currentTime).getTime()) - P30DTime, mrbeastData.map(d => d.currentTime), mrbeastData.map(d => d.count));
-    }
-
-    let hamsterP30D = hamsterData.reduce((prev, curr) => {
-      return (Math.abs(new Date(curr?.last_updated).getTime() - past30Dtime) < Math.abs(new Date(prev?.last_updated).getTime() - past30Dtime) ? curr : prev);
-    }, hamsterData[0]);
-
-    let hamsterP30DSubCount = 0;
-    if (sinceCreated > P30DTime) {
-      if (new Date(hamsterData[0].last_updated).getTime() > P30DDate) {
-        hamsterP30DSubCount = Math.floor((sinceCreated - P30DTime) / (new Date(hamsterP30D.last_updated).getTime() - hamsterCreatedDate) * (hamsterP30D.previous_sub_count));
-      } else {
-        hamsterP30DSubCount = calcCurrentStats((Date.now() - new Date(hamsterData[0].last_updated).getTime()) - P30DTime, hamsterData.map(d => d.last_updated), hamsterData.map(d => d.previous_sub_count));
-      }
-    } else {
-      hamsterP30DSubCount = 0;
-    }
-
-    updateUI({
-      channel1: hamsterCount - hamsterP30DSubCount,
-      channel2: mrbeastCount - mrbeastP30DSubCount
+        document.querySelectorAll(".channel img").forEach((img) => {
+          img.addEventListener("click", (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            const channelDiv = event.currentTarget.closest(".channel");
+            const link = channelDiv.querySelector("a");
+            targetLink = link.href;
+            channelName = channelDiv.querySelector("h2").textContent;
+            showModal(channelDiv);
           });
         });
-      }
 
-      function updateUI(subCounts) {
-        document.getElementById("channel1-subs").textContent = subCounts.channel1.toLocaleString("en-US");
-        document.getElementById("channel2-subs").textContent = subCounts.channel2.toLocaleString("en-US");
+        document.getElementById("modal-yes").addEventListener("click", () => {
+          if (targetLink) {
+            window.location.href = targetLink;
+          }
+          closeModal();
+        });
 
-        const subDiff = Math.abs(subCounts.channel1 - subCounts.channel2);
-        odometerSubDiff.update(subDiff.toLocaleString("en-US"));
+        document.getElementById("modal-no").addEventListener("click", () => {
+          closeModal();
+        });
 
-        const color1 = document.getElementById("channel1-subs").style.color;
-        const color2 = document.getElementById("channel2-subs").style.color;
-        document.getElementById("sub-diff").style.color = subCounts.channel1 > subCounts.channel2 ? color1 : color2;
-      }
+        function showModal(channelDiv) {
+          const channelColor = channelDiv.querySelector("h2").style.color;
+          const darkerColor = adjustBrightness(channelColor, -0.3);
+          const rgbaColor = darkerColor
+            .replace("rgb", "rgba")
+            .replace(")", ", 0.95)");
+          modal.style.backgroundColor = rgbaColor;
+          modal.style.borderColor = darkerColor;
+          modal.querySelectorAll(".modal-button").forEach((button) => {
+            button.style.backgroundColor = rgbaColor.replace(
+              ", 0.95)",
+              ", 0.15)"
+            );
+            button.style.color = "#ffffff";
+          });
+          document.getElementById(
+            "modal-message"
+          ).innerHTML = `You will exit this page and go to ${channelName} on YouTube.<br>Do you wish to proceed?`;
+          modal.classList.add("visible");
+        }
 
-      document.addEventListener("DOMContentLoaded", function () {
-        getAnalytics();
-        getData();
-        setInterval(getData, 30000);
-      });
+        function closeModal() {
+          modal.classList.remove("visible");
+        }
 
-      const odometerSubDiff = new Odometer({
-        el: document.getElementById("sub-diff"),
-        value: 0,
-        format: "(,ddd)",
-        theme: "minimal",
+        function adjustBrightness(color, amount) {
+          const colorArray = color.match(/\d+/g).map(Number);
+          const [r, g, b] = colorArray.map((value) =>
+            Math.max(Math.min(value + amount * 255, 255), 0)
+          );
+          return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        let channel1Details;
+        let channel2Details;
+
+        function fetchData(channelId) {
+          return fetch(`https://api.communitrics.com/${channelId}`)
+            .then((response) => response.json())
+            .catch((error) => {
+              console.error("Error fetching data:", error);
+              return null;
+            });
+        }
+
+        function fetchMrBeastStats() {
+          return fetch(`https://api.communitrics.com/mrbeaststats`)
+            .then((response) => response.json())
+            .catch((error) => {
+              console.error("Error fetching MrBeast stats:", error);
+              return null;
+            });
+        }
+
+        function updateMrBeastGains(stats) {
+          if (stats && stats.totalSubscribersGained) {
+            odometerMrBeastGains.update(
+              stats.totalSubscribersGained.toLocaleString("en-US")
+            );
+            const channel2Color =
+              document.getElementById("channel2-subs").style.color;
+            document.getElementById("mrbeast-gains").style.color =
+              channel2Color;
+          }
+        }
+
+        function getVibrancy(rgb) {
+          const max = Math.max(...rgb);
+          const min = Math.min(...rgb);
+          const saturation = max - min;
+          const brightness = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+          return saturation * brightness;
+        }
+
+        function getMostVibrantColor(palette) {
+          return palette.reduce((mostVibrant, color) =>
+            getVibrancy(color) > getVibrancy(mostVibrant) ? color : mostVibrant
+          );
+        }
+
+        function setColor(elementId, img) {
+          try {
+            const palette = colorThief.getPalette(img, 8);
+            const mostVibrant = getMostVibrantColor(palette);
+            const color = `rgb(${mostVibrant.join(",")})`;
+            document.getElementById(elementId).style.color = color;
+            img.style.borderColor = color;
+
+            const channelDiv = document
+              .getElementById(elementId)
+              .closest(".channel");
+            if (!channelDiv.classList.contains("fullscreen")) {
+              const borderColor = `rgba(${mostVibrant.join(",")}, 0.7)`;
+              channelDiv.style.borderColor = borderColor;
+            }
+
+            return color;
+          } catch (error) {
+            console.error("Error setting color:", error);
+            return null;
+          }
+        }
+
+        function createChart(canvasId, label, color) {
+          const ctx = document.getElementById(canvasId).getContext("2d");
+          return new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: label,
+                  data: [],
+                  borderColor: color,
+                  backgroundColor: color
+                    .replace("rgb", "rgba")
+                    .replace(")", ", 0.2)"),
+                  borderWidth: 1,
+                  fill: true,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: {
+                  display: false,
+                  grid: {
+                    drawBorder: false,
+                    display: false,
+                  },
+                },
+                y: {
+                  display: false,
+                  beginAtZero: false,
+                  grid: {
+                    drawBorder: false,
+                    display: false,
+                  },
+                },
+              },
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+              animation: false,
+              elements: {
+                point: {
+                  radius: 0,
+                },
+                line: {
+                  tension: 0,
+                },
+              },
+              layout: {
+                padding: 0,
+              },
+            },
+          });
+        }
+
+        function updateChart(chart, data, label) {
+          const now = new Date();
+          chart.data.labels.push(now.toLocaleTimeString());
+          chart.data.datasets[0].data.push(data);
+
+          if (chart.data.labels.length > 150) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+          }
+
+          chart.update();
+        }
+
+        function updateUI(subCounts) {
+          if (channel1Details && channel2Details) {
+            updateChannel(
+              channel1Details,
+              "channel1",
+              channel1Id,
+              subCounts.channel1
+            );
+            updateChannel(
+              channel2Details,
+              "channel2",
+              channel2Id,
+              subCounts.channel2 - baseAdjustment
+            );
+
+            const subDiff = Math.abs(
+              subCounts.channel1 - (subCounts.channel2 - baseAdjustment)
+            );
+            odometerSubDiff.update(subDiff.toLocaleString("en-US"));
+
+            const color1 = document.getElementById("channel1-subs").style.color;
+            const color2 = document.getElementById("channel2-subs").style.color;
+            document.getElementById("sub-diff").style.color =
+              subCounts.channel1 > subCounts.channel2 - baseAdjustment
+                ? color1
+                : color2;
+          }
+        }
+
+        function updateChannel(details, prefix, channelId, subCount) {
+          const img = document.getElementById(`${prefix}-image`);
+          img.src = details.channelDetails.profilePicture;
+          img.onload = () => {
+            if (img.complete) {
+              const color = setColor(`${prefix}-name`, img);
+              setColor(`${prefix}-subs`, img);
+
+              if (!charts[prefix]) {
+                charts[prefix] = createChart(
+                  `${prefix}-chart`,
+                  details.channelDetails.name,
+                  color
+                );
+              }
+            }
+          };
+
+          document.getElementById(`${prefix}-name`).textContent =
+            details.channelDetails.name;
+          document.getElementById(
+            `${prefix}-link`
+          ).href = `https://www.youtube.com/channel/${channelId}`;
+
+          document.getElementById(`${prefix}-subs`).textContent =
+            subCount.toLocaleString("en-US");
+
+          chartData[prefix].push(subCount);
+          if (charts[prefix]) {
+            updateChart(charts[prefix], subCount, details.channelDetails.name);
+          }
+
+          if (prefix === "channel2") {
+            fetch("https://api.communitrics.com/UCX6OQ3DkcsbYNE6H8uQQuVA")
+              .then((response) => response.json())
+              .then((data) => {
+                const realSubs = data.channelDetails.linearEstSubscriberCount;
+                const realSubsElement =
+                  document.getElementById("channel2-real-subs");
+                realSubsElement.textContent = realSubs.toLocaleString("en-US");
+                realSubsElement.style.color =
+                  document.getElementById("channel2-subs").style.color;
+                realSubsElement.style.visibility = "visible";
+              })
+              .catch((error) => {
+                document.getElementById("channel2-real-subs").style.visibility =
+                  "hidden";
+              });
+          }
+        }
+
+        function initialize() {
+          fetchData(channel1Id).then((data) => {
+            channel1Details = data;
+            fetchData(channel2Id).then((data) => {
+              channel2Details = data;
+              fetchSubscriberCounts();
+              setInterval(fetchSubscriberCounts, 3_000);
+            });
+          });
+
+          fetchMrBeastStats().then(updateMrBeastGains);
+          document.getElementById("mrbeast-gains").style.color =
+            document.getElementById("channel2-subs").style.color;
+          setInterval(() => {
+            fetchMrBeastStats().then(updateMrBeastGains);
+          }, 15_000);
+
+          document.querySelectorAll(".channel").forEach((channelDiv) => {
+            if (window.innerWidth > 768) {
+              channelDiv.addEventListener("click", () => {
+                enterFullScreen(channelDiv);
+              });
+
+              const link = channelDiv.querySelector("a");
+              if (link) {
+                link.addEventListener("click", (event) => {
+                  event.stopPropagation();
+                });
+              }
+            }
+          });
+        }
+
+        function fetchSubscriberCounts() {
+          Promise.all([fetchData(channel1Id), fetchData(channel2Id)]).then(
+            ([channel1Data, channel2Data]) => {
+              const subCounts = {
+                channel1: channel1Data.channelDetails.linearEstSubscriberCount,
+                channel2: channel2Data.channelDetails.linearEstSubscriberCount,
+              };
+              updateUI(subCounts);
+            }
+          );
+        }
+
+        const odometerSubDiff = new Odometer({
+          el: document.getElementById("sub-diff"),
+          value: 0,
+          format: "(,ddd)",
+          theme: "minimal",
+        });
+
+        const odometerMrBeastGains = new Odometer({
+          el: document.getElementById("mrbeast-gains"),
+          value: 0,
+          format: "(,ddd)",
+          theme: "minimal",
+        });
+
+        const odometerRealSubs = new Odometer({
+          el: document.getElementById("channel2-real-subs"),
+          value: 0,
+          format: "(,ddd)",
+          theme: "minimal",
+        });
+
+        const originalOrder = Array.from(
+          document.querySelectorAll(".channels .channel")
+        );
+        let originalParent;
+
+        function enterFullScreen(channelDiv) {
+          originalParent = channelDiv.parentNode;
+          channelDiv.classList.add("fullscreen");
+          document.body.classList.add("fullscreen-mode");
+
+          const backButton = document.createElement("button");
+          backButton.textContent = "Back";
+          backButton.classList.add("back-button");
+          backButton.style.animation = "fadeIn 0.4s ease-out";
+          const channelColor = window.getComputedStyle(
+            channelDiv.querySelector("h2")
+          ).color;
+          backButton.style.backgroundColor = channelColor
+            .replace("rgb", "rgba")
+            .replace(")", ", 0.15)");
+          backButton.style.color = channelColor;
+
+          backButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            exitFullScreen(channelDiv);
+          });
+          channelDiv.appendChild(backButton);
+          document.body.appendChild(channelDiv);
+
+          const canvas = channelDiv.querySelector("canvas");
+          const chartId = canvas.id.replace("-chart", "");
+          const chartInstance = charts[chartId];
+          if (chartInstance) {
+            new Chart(canvas, chartInstance.config);
+          }
+
+          const borderColor = window.getComputedStyle(channelDiv).borderColor;
+          channelDiv.style.borderColor = borderColor;
+
+          channelDiv.style.border = `3px solid ${borderColor}`;
+          channelDiv.style.zIndex = 1000;
+          document.body.style.overflow = "hidden";
+        }
+
+        function exitFullScreen(channelDiv) {
+          channelDiv.classList.remove("fullscreen");
+          document.body.classList.remove("fullscreen-mode");
+
+          const backButton = channelDiv.querySelector(".back-button");
+          if (backButton) {
+            backButton.remove();
+          }
+          originalParent.appendChild(channelDiv);
+          originalOrder.forEach((channel) =>
+            originalParent.appendChild(channel)
+          );
+
+          const img = channelDiv.querySelector("img");
+          if (img.complete) {
+            const color = setColor(channelDiv.querySelector("h2").id, img);
+            channelDiv.style.borderColor = `rgba(${color.slice(4, -1)}, 0.7)`;
+          } else {
+            img.onload = () => {
+              const color = setColor(channelDiv.querySelector("h2").id, img);
+              channelDiv.style.borderColor = `rgba(${color.slice(4, -1)}, 0.7)`;
+            };
+          }
+          channelDiv.style.zIndex = "auto";
+          document.body.style.overflow = "auto";
+        }
+
+        initialize();
       });
     </script>
   </body>
