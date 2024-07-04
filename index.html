@@ -374,63 +374,66 @@
         return Math.floor(compareCurCount);
       }
 
-      function getAnalytics() {
-        Promise.all([
-          fetch("https://api.communitrics.com/mrbeast"),
-          fetch("https://api.communitrics.com/UCozwejESfvl88CBBL0KgEhw"),
-        ])
-        .then((responses) => Promise.all(responses.map((res) => res.json())))
-        .then((rawData) => {
-          mrbeastData = rawData[0];
-          hamsterData = rawData[1].data;
-          hamsterHrGains = Math.round(rawData[1].channelDetails.mostRecentAverage / 24);
-        });
+let mrbeastData;
+let hamsterData;
+
+function getAnalytics() {
+  Promise.all([
+    fetch("https://api.communitrics.com/mrbeast"),
+    fetch("https://api.communitrics.com/UCozwejESfvl88CBBL0KgEhw"),
+  ])
+  .then((responses) => Promise.all(responses.map((res) => res.json())))
+  .then((rawData) => {
+    mrbeastData = rawData[0];
+    hamsterData = rawData[1].data;
+    hamsterHrGains = Math.round(rawData[1].channelDetails.mostRecentAverage / 24);
+  });
+}
+
+function getData() {
+  Promise.all([
+    fetch("https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCX6OQ3DkcsbYNE6H8uQQuVA"),
+    fetch("https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCozwejESfvl88CBBL0KgEhw")
+  ])
+  .then((responses) => Promise.all(responses.map((res) => res.json())))
+  .then((rawData) => {
+    let P30DTime = 30 * 24 * 60 * 60 * 1000;
+    let P30DDate = Date.now() - P30DTime;
+    let hamsterCreatedDate = new Date("2024-05-24T15:01:14.464999Z").getTime();
+    let sinceCreated = Date.now() - hamsterCreatedDate;
+    let past30Dtime = sinceCreated > P30DTime ? P30DDate : hamsterCreatedDate;
+    let P30DDateString = new Date(Math.max(P30DDate, hamsterCreatedDate)).toISOString();
+    let mrbeastCount = rawData[0].estSubCount;
+    let hamsterCount = rawData[1].estSubCount;
+
+    let mrbeastP30D = mrbeastData.reduce((prev, curr) => {
+      return (Math.abs(new Date(curr?.currentTime).getTime() - past30Dtime) < Math.abs(new Date(prev?.currentTime).getTime() - past30Dtime) ? curr : prev);
+    }, mrbeastData[0]);
+
+    let mrbeastP30DSubCount = mrbeastP30D.count;
+
+    if (sinceCreated > P30DTime) {
+      mrbeastP30DSubCount = calcCurrentStats((Date.now() - new Date(mrbeastData[0].currentTime).getTime()) - P30DTime, mrbeastData.map(d => d.currentTime), mrbeastData.map(d => d.count));
+    }
+
+    let hamsterP30D = hamsterData.reduce((prev, curr) => {
+      return (Math.abs(new Date(curr?.last_updated).getTime() - past30Dtime) < Math.abs(new Date(prev?.last_updated).getTime() - past30Dtime) ? curr : prev);
+    }, hamsterData[0]);
+
+    let hamsterP30DSubCount = 0;
+    if (sinceCreated > P30DTime) {
+      if (new Date(hamsterData[0].last_updated).getTime() > P30DDate) {
+        hamsterP30DSubCount = Math.floor((sinceCreated - P30DTime) / (new Date(hamsterP30D.last_updated).getTime() - hamsterCreatedDate) * (hamsterP30D.previous_sub_count));
+      } else {
+        hamsterP30DSubCount = calcCurrentStats((Date.now() - new Date(hamsterData[0].last_updated).getTime()) - P30DTime, hamsterData.map(d => d.last_updated), hamsterData.map(d => d.previous_sub_count));
       }
+    } else {
+      hamsterP30DSubCount = 0;
+    }
 
-      function getData() {
-        Promise.all([
-          fetch("https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCX6OQ3DkcsbYNE6H8uQQuVA"),
-          fetch("https://nia-statistics.com/api/get?platform=youtube&type=channel&id=UCozwejESfvl88CBBL0KgEhw")
-        ])
-        .then((responses) => Promise.all(responses.map((res) => res.json())))
-        .then((rawData) => {
-          let P30DTime = 30 * 24 * 60 * 60 * 1000;
-          let P30DDate = Date.now() - P30DTime;
-          let hamsterCreatedDate = new Date("2024-05-24T15:01:14.464999Z").getTime();
-          let sinceCreated = Date.now() - hamsterCreatedDate;
-          let past30Dtime = sinceCreated > P30DTime ? P30DDate : hamsterCreatedDate;
-          let P30DDateString = new Date(Math.max(P30DDate, hamsterCreatedDate)).toISOString();
-          let mrbeastCount = rawData[0].estSubCount;
-          let hamsterCount = rawData[1].estSubCount;
-
-          let mrbeastP30D = mrbeastData.reduce((prev, curr) => {
-            return (Math.abs(new Date(curr?.currentTime).getTime() - past30Dtime) < Math.abs(new Date(prev?.currentTime).getTime() - past30Dtime) ? curr : prev);
-          }, mrbeastData[0]);
-
-          let mrbeastP30DSubCount = mrbeastP30D.count;
-
-          if (sinceCreated > P30DTime) {
-            mrbeastP30DSubCount = calcCurrentStats((Date.now() - new Date(mrbeastData[0].currentTime).getTime()) - P30DTime, mrbeastData.map(d => d.currentTime), mrbeastData.map(d => d.count));
-          }
-
-          let hamsterP30D = hamsterData.reduce((prev, curr) => {
-            return (Math.abs(new Date(curr?.last_updated).getTime() - past30Dtime) < Math.abs(new Date(prev?.last_updated).getTime() - past30Dtime) ? curr : prev);
-          }, hamsterData[0]);
-
-          let hamsterP30DSubCount = 0;
-          if (sinceCreated > P30DTime) {
-            if (new Date(hamsterData[0].last_updated).getTime() > P30DDate) {
-              hamsterP30DSubCount = Math.floor((sinceCreated - P30DTime) / (new Date(hamsterP30D.last_updated).getTime() - hamsterCreatedDate) * (hamsterP30D.previous_sub_count));
-            } else {
-              hamsterP30DSubCount = calcCurrentStats((Date.now() - new Date(hamsterData[0].last_updated).getTime()) - P30DTime, hamsterData.map(d => d.last_updated), hamsterData.map(d => d.previous_sub_count));
-            }
-          } else {
-            hamsterP30DSubCount = 0;
-          }
-
-          updateUI({
-            channel1: hamsterCount - hamsterP30DSubCount,
-            channel2: mrbeastCount - mrbeastP30DSubCount
+    updateUI({
+      channel1: hamsterCount - hamsterP30DSubCount,
+      channel2: mrbeastCount - mrbeastP30DSubCount
           });
         });
       }
